@@ -2,7 +2,7 @@ const path = require("path");
 const fs = require("fs");
 const LEGACY_MODEL_MAP = require("./legacy");
 
-class ContextWindowFinder {
+class Mrl_ContextWindowFinder {
   static instance = null;
   static modelMap = LEGACY_MODEL_MAP;
 
@@ -36,8 +36,8 @@ class ContextWindowFinder {
   seenStaleCacheWarning = false;
 
   constructor() {
-    if (ContextWindowFinder.instance) return ContextWindowFinder.instance;
-    ContextWindowFinder.instance = this;
+    if (Mrl_ContextWindowFinder.instance) return Mrl_ContextWindowFinder.instance;
+    Mrl_ContextWindowFinder.instance = this;
     if (!fs.existsSync(this.cacheLocation))
       fs.mkdirSync(this.cacheLocation, { recursive: true });
 
@@ -50,7 +50,7 @@ class ContextWindowFinder {
   }
 
   log(text, ...args) {
-    console.log(`\x1b[33m[ContextWindowFinder]\x1b[0m ${text}`, ...args);
+    console.log(`\x1b[33m[Mrl_ContextWindowFinder]\x1b[0m ${text}`, ...args);
   }
 
   /**
@@ -60,7 +60,7 @@ class ContextWindowFinder {
   get isCacheStale() {
     if (!fs.existsSync(this.cacheFileExpiryPath)) return true;
     const cachedAt = fs.readFileSync(this.cacheFileExpiryPath, "utf8");
-    return Date.now() - cachedAt > ContextWindowFinder.expiryMs;
+    return Date.now() - Number(cachedAt) > Mrl_ContextWindowFinder.expiryMs;
   }
 
   /**
@@ -101,7 +101,7 @@ You can fix this by restarting AnythingLLM so the model map is re-pulled.
   async #pullRemoteModelMap() {
     try {
       this.log("Pulling remote model map...");
-      const response = await fetch(ContextWindowFinder.remoteUrl);
+      const response = await fetch(Mrl_ContextWindowFinder.remoteUrl);
       if (response.status !== 200) {
         throw new Error(
           "Failed to fetch remote model map - non 200 status code"
@@ -160,7 +160,7 @@ You can fix this by restarting AnythingLLM so the model map is re-pulled.
     const formattedModelMap = {};
 
     for (const [provider, liteLLMProviderTag] of Object.entries(
-      ContextWindowFinder.trackedProviders
+      Mrl_ContextWindowFinder.trackedProviders
     )) {
       formattedModelMap[provider] = {};
       const matches = Object.entries(modelMap).filter(
@@ -191,11 +191,11 @@ You can fix this by restarting AnythingLLM so the model map is re-pulled.
    * @returns {number|null} - The context window for the given provider and model
    */
   get(provider = null, model = null) {
-    if (!provider || !this.cachedModelMap || !this.cachedModelMap[provider])
-      return null;
-    if (!model) return this.cachedModelMap[provider];
+    const modelMap = this.cachedModelMap ?? Mrl_ContextWindowFinder.modelMap;
+    if (!provider || !modelMap || !modelMap[provider]) return null;
+    if (!model) return modelMap[provider];
 
-    const modelContextWindow = this.cachedModelMap[provider][model];
+    const modelContextWindow = modelMap[provider][model];
     if (!modelContextWindow) {
       this.log("Invalid access to model context window - not found in cache", {
         provider,
@@ -207,4 +207,4 @@ You can fix this by restarting AnythingLLM so the model map is re-pulled.
   }
 }
 
-module.exports = { MODEL_MAP: new ContextWindowFinder() };
+module.exports = { MODEL_MAP: new Mrl_ContextWindowFinder() };
